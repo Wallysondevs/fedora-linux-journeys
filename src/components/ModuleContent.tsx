@@ -16,6 +16,9 @@ const ModuleContent = ({ module, moduleIndex, totalModules, onNavigate }: Module
       <div className="max-w-3xl mx-auto px-8 py-10">
         {/* Header */}
         <div className="mb-8 animate-fade-in">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono mb-1">
+            <span className="uppercase tracking-wider">{module.category}</span>
+          </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono mb-3">
             <span>Módulo {String(moduleIndex + 1).padStart(2, "0")}</span>
             <span>/</span>

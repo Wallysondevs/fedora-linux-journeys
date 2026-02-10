@@ -18,6 +18,7 @@ export interface Module {
   title: string;
   icon: string;
   description: string;
+  category: string;
   content: string[];
   commands: Command[];
   exercises: Exercise[];
