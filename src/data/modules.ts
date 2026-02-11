@@ -2079,7 +2079,354 @@ export const modules: Module[] = [
   },
 
   // ═══════════════════════════════════════════════════════
-  // PARTE 13 — PREPARAÇÃO PARA A PROVA
+  // PARTE 13 — INFRAESTRUTURA COMO CÓDIGO
+  // ═══════════════════════════════════════════════════════
+  {
+    id: "iac-usuarios-diretorios",
+    title: "IaC: Script de Usuários, Diretórios e Permissões",
+    icon: "🏗️",
+    category: "Infraestrutura como Código",
+    description: "Crie scripts Bash para provisionar estruturas de usuários, diretórios e permissões automaticamente",
+    content: [
+      "**O que é Infraestrutura como Código (IaC)?** É a prática de gerenciar e provisionar infraestrutura através de scripts e arquivos de configuração, em vez de processos manuais. No Linux, isso significa criar scripts Bash que automatizam a criação de usuários, diretórios, permissões e grupos — garantindo consistência e reprodutibilidade.",
+      "**Por que usar IaC?** Imagine que você precisa criar 20 usuários em um servidor, cada um com sua pasta, grupo e permissões. Fazer manualmente é lento e propenso a erros. Com um script, você faz em segundos e pode reusar em outros servidores!",
+      "**Estrutura de um script de provisionamento:** 1) Definir variáveis (nomes de usuários, diretórios, grupos). 2) Criar grupos. 3) Criar usuários e adicionar aos grupos. 4) Criar a estrutura de diretórios. 5) Definir permissões e donos. 6) Verificar se tudo foi criado corretamente.",
+      "**Exemplo prático — Script completo:** Imagine uma empresa com 3 departamentos: TI, RH e Financeiro. Cada departamento tem um diretório compartilhado em /publico. Usuários de cada departamento pertencem ao grupo correspondente e têm acesso total ao diretório do seu departamento.",
+      "**Boas práticas em scripts IaC:** 1) Sempre comece com #!/bin/bash. 2) Use 'set -e' para parar se algo falhar. 3) Verifique se está rodando como root. 4) Adicione echo para cada ação (logging). 5) Verifique se usuários/grupos já existem antes de criar. 6) Use variáveis para evitar repetição. 7) Teste em VM antes de rodar em produção!",
+      "**Testando o script:** Execute com 'sudo bash script.sh'. Verifique: 'cat /etc/group | grep -E \"GRP_TI|GRP_RH|GRP_FIN\"', 'ls -la /publico/', 'id usuario'. Para desfazer tudo, crie um script de cleanup que remove usuários e diretórios.",
+    ],
+    commands: [
+      {
+        command: "Script IaC Completo",
+        description: "Script que cria grupos, usuários, diretórios e define permissões automaticamente",
+        example: "#!/bin/bash\n# ============================================\n# SCRIPT DE PROVISIONAMENTO - IaC\n# ============================================\nset -e  # Para se algum comando falhar\n\n# Verificar se está rodando como root\nif [ \"$EUID\" -ne 0 ]; then\n  echo \"Execute como root: sudo bash $0\"\n  exit 1\nfi\n\necho \"=== Criando grupos ===\"\ngroupadd -f GRP_TI\ngroupadd -f GRP_RH\ngroupadd -f GRP_FINANCEIRO\n\necho \"=== Criando diretórios ===\"\nmkdir -p /publico/ti\nmkdir -p /publico/rh\nmkdir -p /publico/financeiro\n\necho \"=== Criando usuários do TI ===\"\nfor user in carlos maria pedro; do\n  useradd -m -G GRP_TI -s /bin/bash $user 2>/dev/null || echo \"$user já existe\"\n  echo \"$user:Senha@123\" | chpasswd\ndone\n\necho \"=== Criando usuários do RH ===\"\nfor user in ana julia roberto; do\n  useradd -m -G GRP_RH -s /bin/bash $user 2>/dev/null || echo \"$user já existe\"\n  echo \"$user:Senha@123\" | chpasswd\ndone\n\necho \"=== Criando usuários do Financeiro ===\"\nfor user in lucas fernanda bruna; do\n  useradd -m -G GRP_FINANCEIRO -s /bin/bash $user 2>/dev/null || echo \"$user já existe\"\n  echo \"$user:Senha@123\" | chpasswd\ndone\n\necho \"=== Definindo permissões ===\"\nchown -R root:GRP_TI /publico/ti\nchown -R root:GRP_RH /publico/rh\nchown -R root:GRP_FINANCEIRO /publico/financeiro\nchmod 770 /publico/ti /publico/rh /publico/financeiro\nchmod 755 /publico\n\necho \"=== Provisionamento concluído! ===\"",
+        output: "# 770 = dono e grupo leem/escrevem/executam, outros sem acesso\n# Cada departamento só acessa seu diretório\n# chpasswd define senhas em lote via pipe",
+      },
+      {
+        command: "groupadd -f nome_grupo",
+        description: "Cria um grupo (-f não dá erro se já existir)",
+        example: "sudo groupadd -f GRP_TI\nsudo groupadd -f GRP_RH",
+      },
+      {
+        command: "echo 'user:senha' | chpasswd",
+        description: "Define senhas em lote (útil em scripts de provisionamento)",
+        example: "echo 'carlos:Senha@123' | sudo chpasswd",
+      },
+      {
+        command: "set -e",
+        description: "Faz o script parar imediatamente se qualquer comando falhar (boa prática em IaC)",
+        example: "#!/bin/bash\nset -e\n# Se qualquer comando abaixo falhar, o script para",
+      },
+      {
+        command: "Script de Cleanup (desfazer)",
+        description: "Script que remove tudo que foi criado pelo script de provisionamento",
+        example: "#!/bin/bash\nset -e\nif [ \"$EUID\" -ne 0 ]; then echo \"Execute como root\"; exit 1; fi\n\necho \"=== Removendo usuários ===\"\nfor user in carlos maria pedro ana julia roberto lucas fernanda bruna; do\n  userdel -rf $user 2>/dev/null || echo \"$user não existe\"\ndone\n\necho \"=== Removendo grupos ===\"\ngroupdel GRP_TI 2>/dev/null || true\ngroupdel GRP_RH 2>/dev/null || true\ngroupdel GRP_FINANCEIRO 2>/dev/null || true\n\necho \"=== Removendo diretórios ===\"\nrm -rf /publico\n\necho \"=== Cleanup concluído! ===\"",
+      },
+    ],
+    exercises: [
+      { id: 1, question: "O que é Infraestrutura como Código (IaC)?", answer: "Prática de provisionar infraestrutura (usuários, diretórios, permissões) através de scripts automatizados, garantindo consistência e reprodutibilidade." },
+      { id: 2, question: "Qual comando define senhas em lote dentro de scripts?", answer: "echo 'usuario:senha' | chpasswd" },
+      { id: 3, question: "Para que serve 'set -e' no início de um script?", answer: "Faz o script parar imediatamente se qualquer comando falhar (evita execução parcial com erros)" },
+      { id: 4, question: "Como verificar se o script está sendo executado como root?", answer: "if [ \"$EUID\" -ne 0 ]; then echo 'Execute como root'; exit 1; fi" },
+      { id: 5, question: "Crie o comando que atribui o grupo GRP_TI ao diretório /publico/ti com permissão 770", answer: "chown root:GRP_TI /publico/ti && chmod 770 /publico/ti" },
+      { id: 6, question: "O que a flag -f faz no groupadd?", answer: "Não retorna erro se o grupo já existir (force — útil em scripts)" },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════
+  // PARTE 14 — SERVIÇOS LINUX
+  // ═══════════════════════════════════════════════════════
+  {
+    id: "servidor-arquivos",
+    title: "Servidores de Arquivos: Samba e NFS",
+    icon: "📁",
+    category: "Serviços Linux",
+    description: "Compartilhe arquivos entre Linux e Windows com Samba, e entre máquinas Linux com NFS",
+    content: [
+      "**Servidores de arquivos** permitem compartilhar pastas e arquivos pela rede. No Linux, temos duas tecnologias principais: Samba (para compartilhar com Windows) e NFS (para compartilhar entre máquinas Linux).",
+      "**Samba — Compartilhamento com Windows:** O Samba implementa o protocolo SMB/CIFS usado pelo Windows. Com ele, uma pasta no Linux aparece no 'Explorador de Arquivos' do Windows como se fosse uma pasta de rede. Ideal para ambientes mistos Linux+Windows.",
+      "**Configurando o Samba:** 1) Instale: 'sudo dnf install samba samba-client'. 2) Crie uma pasta compartilhada: 'sudo mkdir -p /srv/samba/compartilhado'. 3) Configure as permissões. 4) Edite /etc/samba/smb.conf. 5) Crie um usuário Samba: 'sudo smbpasswd -a usuario'. 6) Inicie: 'sudo systemctl start smb nmb'. 7) Libere no firewall.",
+      "**Exemplo de /etc/samba/smb.conf:** Adicione ao final: [compartilhado] → path = /srv/samba/compartilhado → browseable = yes → writable = yes → valid users = @samba_grupo. No Windows, acesse: \\\\IP_DO_LINUX\\compartilhado.",
+      "**NFS — Compartilhamento entre Linux:** O NFS (Network File System) é mais simples e rápido para redes 100% Linux. O servidor exporta um diretório e clientes montam como se fosse local. Instale: 'sudo dnf install nfs-utils'. Configure /etc/exports: '/srv/nfs 192.168.1.0/24(rw,sync,no_subtree_check)'. Inicie: 'sudo systemctl start nfs-server'. No cliente: 'sudo mount IP:/srv/nfs /mnt/nfs'.",
+    ],
+    commands: [
+      {
+        command: "sudo dnf install samba samba-client",
+        description: "Instala o servidor Samba (compartilhamento com Windows)",
+        example: "sudo dnf install samba samba-client",
+      },
+      {
+        command: "sudo smbpasswd -a usuario",
+        description: "Cria/define senha de um usuário Samba (diferente da senha Linux!)",
+        example: "sudo smbpasswd -a estudante",
+      },
+      {
+        command: "sudo systemctl start smb nmb",
+        description: "Inicia os serviços Samba (smb = compartilhamento, nmb = resolução de nomes NetBIOS)",
+        example: "sudo systemctl start smb nmb\nsudo systemctl enable smb nmb",
+      },
+      {
+        command: "sudo vim /etc/samba/smb.conf",
+        description: "Edita a configuração do Samba — define os compartilhamentos",
+        example: "# Adicione ao final de /etc/samba/smb.conf:\n[publico]\n  path = /srv/samba/publico\n  browseable = yes\n  writable = yes\n  guest ok = yes\n  create mask = 0666\n  directory mask = 0777",
+      },
+      {
+        command: "testparm",
+        description: "Valida a configuração do Samba (verifica erros no smb.conf)",
+        example: "testparm",
+      },
+      {
+        command: "sudo firewall-cmd --add-service=samba --permanent",
+        description: "Libera Samba no firewall",
+        example: "sudo firewall-cmd --add-service=samba --permanent\nsudo firewall-cmd --reload",
+      },
+      {
+        command: "sudo dnf install nfs-utils",
+        description: "Instala o servidor NFS (compartilhamento entre Linux)",
+        example: "sudo dnf install nfs-utils\nsudo systemctl start nfs-server\nsudo systemctl enable nfs-server",
+      },
+      {
+        command: "sudo vim /etc/exports",
+        description: "Configura os diretórios exportados pelo NFS",
+        example: "# /etc/exports:\n/srv/nfs 192.168.1.0/24(rw,sync,no_subtree_check)",
+      },
+      {
+        command: "sudo exportfs -a",
+        description: "Aplica as alterações do /etc/exports sem reiniciar o serviço",
+        example: "sudo exportfs -a\nsudo exportfs -v",
+      },
+      {
+        command: "sudo mount IP:/srv/nfs /mnt/nfs",
+        description: "Monta um compartilhamento NFS no cliente",
+        example: "sudo mkdir /mnt/nfs\nsudo mount 192.168.1.10:/srv/nfs /mnt/nfs\ndf -h /mnt/nfs",
+      },
+    ],
+    exercises: [
+      { id: 1, question: "Qual protocolo usar para compartilhar arquivos entre Linux e Windows?", answer: "Samba (implementa SMB/CIFS)" },
+      { id: 2, question: "Qual protocolo usar para compartilhar arquivos entre máquinas Linux?", answer: "NFS (Network File System)" },
+      { id: 3, question: "Qual comando valida a configuração do Samba?", answer: "testparm" },
+      { id: 4, question: "Como acessar um compartilhamento Samba no Windows?", answer: "No Explorador de Arquivos, digite: \\\\IP_DO_LINUX\\nome_do_compartilhamento" },
+      { id: 5, question: "Como aplicar alterações no /etc/exports sem reiniciar?", answer: "sudo exportfs -a" },
+    ],
+  },
+  {
+    id: "servidor-web-apache",
+    title: "Criando um Servidor Web com Apache",
+    icon: "🌍",
+    category: "Serviços Linux",
+    description: "Instale e configure o Apache (httpd) para servir sites web no Fedora",
+    content: [
+      "**O que é o Apache?** O Apache HTTP Server (httpd) é o servidor web mais utilizado no mundo. Ele serve páginas HTML, CSS, JS e pode rodar PHP, Python e outras linguagens via módulos. No Fedora, o pacote se chama 'httpd'.",
+      "**Instalação e configuração básica:** 1) Instale: 'sudo dnf install httpd'. 2) Inicie: 'sudo systemctl start httpd'. 3) Habilite no boot: 'sudo systemctl enable httpd'. 4) Libere no firewall: 'sudo firewall-cmd --add-service=http --permanent && sudo firewall-cmd --reload'. 5) Acesse http://localhost no navegador — deve aparecer a página de teste do Fedora.",
+      "**Onde colocar seus arquivos:** A pasta raiz do Apache é '/var/www/html/'. Coloque seus arquivos HTML aqui: 'sudo cp index.html /var/www/html/'. Acesse em http://localhost/index.html. Para criar um subsite: 'sudo mkdir /var/www/html/meusite' e acesse http://localhost/meusite/.",
+      "**Virtual Hosts — Múltiplos sites:** O Apache pode servir vários sites no mesmo servidor usando Virtual Hosts. Crie arquivos em /etc/httpd/conf.d/. Exemplo: /etc/httpd/conf.d/meusite.conf com ServerName, DocumentRoot, etc.",
+      "**PHP no Apache:** Instale: 'sudo dnf install php php-mysqlnd php-json'. Reinicie: 'sudo systemctl restart httpd'. Crie /var/www/html/info.php com '<?php phpinfo(); ?>' e acesse http://localhost/info.php.",
+      "**Logs do Apache:** Acessos: /var/log/httpd/access_log. Erros: /var/log/httpd/error_log. Use 'tail -f /var/log/httpd/error_log' para monitorar erros em tempo real.",
+    ],
+    commands: [
+      {
+        command: "sudo dnf install httpd",
+        description: "Instala o servidor web Apache",
+        example: "sudo dnf install httpd\nsudo systemctl start httpd\nsudo systemctl enable httpd",
+      },
+      {
+        command: "sudo systemctl start httpd",
+        description: "Inicia o Apache. Depois acesse http://localhost no navegador",
+        example: "sudo systemctl start httpd\nsystemctl status httpd",
+      },
+      {
+        command: "sudo firewall-cmd --add-service=http --permanent",
+        description: "Libera HTTP (porta 80) no firewall — necessário para acesso externo",
+        example: "sudo firewall-cmd --add-service=http --permanent\nsudo firewall-cmd --add-service=https --permanent\nsudo firewall-cmd --reload",
+      },
+      {
+        command: "sudo cp -r ~/meusite/* /var/www/html/",
+        description: "Copia seus arquivos para a pasta raiz do Apache",
+        example: "sudo mkdir /var/www/html/meusite\nsudo cp -r ~/meusite/* /var/www/html/meusite/\nsudo chown -R apache:apache /var/www/html/meusite/",
+      },
+      {
+        command: "sudo dnf install php php-mysqlnd",
+        description: "Instala PHP com suporte a MySQL/MariaDB para o Apache",
+        example: "sudo dnf install php php-mysqlnd php-json php-mbstring\nsudo systemctl restart httpd",
+      },
+      {
+        command: "tail -f /var/log/httpd/error_log",
+        description: "Monitora erros do Apache em tempo real",
+        example: "sudo tail -f /var/log/httpd/error_log\nsudo tail -f /var/log/httpd/access_log",
+      },
+      {
+        command: "apachectl configtest",
+        description: "Testa a configuração do Apache sem reiniciar (verifica erros de sintaxe)",
+        example: "sudo apachectl configtest",
+        output: "Syntax OK",
+      },
+    ],
+    exercises: [
+      { id: 1, question: "Qual é o nome do pacote do Apache no Fedora?", answer: "httpd (instale com: sudo dnf install httpd)" },
+      { id: 2, question: "Em qual diretório ficam os arquivos do site no Apache?", answer: "/var/www/html/" },
+      { id: 3, question: "Quais 3 comandos são necessários para instalar, iniciar e habilitar o Apache?", answer: "sudo dnf install httpd && sudo systemctl start httpd && sudo systemctl enable httpd" },
+      { id: 4, question: "Como liberar o Apache no firewall?", answer: "sudo firewall-cmd --add-service=http --permanent && sudo firewall-cmd --reload" },
+      { id: 5, question: "Onde ficam os logs de erro do Apache?", answer: "/var/log/httpd/error_log" },
+      { id: 6, question: "Como testar a configuração sem reiniciar?", answer: "sudo apachectl configtest" },
+    ],
+  },
+  {
+    id: "servidor-banco-dados",
+    title: "Servidor de Banco de Dados",
+    icon: "🗄️",
+    category: "Serviços Linux",
+    description: "Instale e configure MariaDB e PostgreSQL para servir bancos de dados no Fedora",
+    content: [
+      "**Bancos de dados no Linux:** Servidores Linux frequentemente rodam bancos de dados que outras aplicações acessam pela rede. Os dois mais comuns no mundo open source são MariaDB (fork do MySQL) e PostgreSQL.",
+      "**MariaDB (substituto do MySQL):** O MariaDB é 100% compatível com MySQL. É o banco de dados relacional mais popular em servidores web (LAMP stack). O Fedora usa MariaDB por padrão em vez do MySQL.",
+      "**Instalando MariaDB:** 1) 'sudo dnf install mariadb-server'. 2) 'sudo systemctl start mariadb'. 3) 'sudo systemctl enable mariadb'. 4) Execute o script de segurança: 'sudo mysql_secure_installation' — ele define senha do root, remove usuários anônimos e bancos de teste.",
+      "**Usando o MariaDB:** Conecte com 'sudo mysql -u root -p'. Comandos SQL básicos: 'SHOW DATABASES;', 'CREATE DATABASE meubd;', 'USE meubd;', 'CREATE TABLE alunos (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(100));', 'INSERT INTO alunos (nome) VALUES (\"João\");', 'SELECT * FROM alunos;'.",
+      "**PostgreSQL:** Banco de dados mais avançado, ideal para aplicações complexas. Instale: 'sudo dnf install postgresql-server postgresql'. Inicialize: 'sudo postgresql-setup --initdb'. Inicie: 'sudo systemctl start postgresql'. Conecte: 'sudo -u postgres psql'.",
+      "**Liberando acesso pela rede:** Por padrão, os bancos só aceitam conexões locais. Para MariaDB: edite /etc/my.cnf.d/mariadb-server.cnf e comente 'bind-address'. Para PostgreSQL: edite /var/lib/pgsql/data/pg_hba.conf e postgresql.conf. Libere a porta no firewall: 3306 (MariaDB) ou 5432 (PostgreSQL).",
+    ],
+    commands: [
+      {
+        command: "sudo dnf install mariadb-server",
+        description: "Instala o servidor MariaDB (compatível com MySQL)",
+        example: "sudo dnf install mariadb-server\nsudo systemctl start mariadb\nsudo systemctl enable mariadb",
+      },
+      {
+        command: "sudo mysql_secure_installation",
+        description: "Script de segurança pós-instalação — define senha root, remove acessos anônimos",
+        example: "sudo mysql_secure_installation",
+        output: "# Responda:\n# Set root password? [Y]\n# Remove anonymous users? [Y]\n# Disallow root login remotely? [Y]\n# Remove test database? [Y]\n# Reload privilege tables? [Y]",
+      },
+      {
+        command: "sudo mysql -u root -p",
+        description: "Conecta ao MariaDB como root (pede a senha definida na instalação)",
+        example: "sudo mysql -u root -p\n# Dentro do MariaDB:\nSHOW DATABASES;\nCREATE DATABASE escola;\nUSE escola;\nCREATE TABLE alunos (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(100), turma VARCHAR(10));\nINSERT INTO alunos (nome, turma) VALUES ('João', '3A');\nSELECT * FROM alunos;",
+      },
+      {
+        command: "sudo dnf install postgresql-server postgresql",
+        description: "Instala o PostgreSQL",
+        example: "sudo dnf install postgresql-server postgresql\nsudo postgresql-setup --initdb\nsudo systemctl start postgresql\nsudo systemctl enable postgresql",
+      },
+      {
+        command: "sudo -u postgres psql",
+        description: "Conecta ao PostgreSQL como o usuário 'postgres' (DBA padrão)",
+        example: "sudo -u postgres psql\n# Dentro do psql:\n\\l (lista databases)\nCREATE DATABASE meubd;\n\\c meubd (conecta ao banco)\nCREATE TABLE teste (id SERIAL PRIMARY KEY, nome TEXT);\n\\dt (lista tabelas)\n\\q (sai do psql)",
+      },
+      {
+        command: "sudo firewall-cmd --add-port=3306/tcp --permanent",
+        description: "Libera MariaDB no firewall (porta 3306). PostgreSQL usa 5432.",
+        example: "sudo firewall-cmd --add-port=3306/tcp --permanent\nsudo firewall-cmd --add-port=5432/tcp --permanent\nsudo firewall-cmd --reload",
+      },
+    ],
+    exercises: [
+      { id: 1, question: "Qual é o banco de dados relacional padrão do Fedora?", answer: "MariaDB (substituto open-source do MySQL)" },
+      { id: 2, question: "Qual comando roda o script de segurança do MariaDB?", answer: "sudo mysql_secure_installation" },
+      { id: 3, question: "Como conectar ao MariaDB pelo terminal?", answer: "sudo mysql -u root -p" },
+      { id: 4, question: "Qual é a porta padrão do MariaDB? E do PostgreSQL?", answer: "MariaDB = 3306, PostgreSQL = 5432" },
+      { id: 5, question: "Como inicializar o banco de dados do PostgreSQL após instalar?", answer: "sudo postgresql-setup --initdb" },
+      { id: 6, question: "Como conectar ao PostgreSQL?", answer: "sudo -u postgres psql" },
+    ],
+  },
+  {
+    id: "iac-servidor-web",
+    title: "IaC: Script de Provisionamento de Servidor Web",
+    icon: "⚙️",
+    category: "Infraestrutura como Código",
+    description: "Automatize a instalação e configuração completa de um servidor Apache com script Bash",
+    content: [
+      "**Objetivo:** Criar um script que automatiza TODA a configuração de um servidor web Apache — da instalação à publicação do site. Ao rodar o script, o servidor fica pronto para uso sem nenhuma intervenção manual.",
+      "**O que o script faz:** 1) Atualiza o sistema. 2) Instala Apache + PHP. 3) Configura o firewall. 4) Cria a estrutura de diretórios do site. 5) Baixa/copia os arquivos do site. 6) Define permissões corretas. 7) Inicia e habilita os serviços. 8) Testa se tudo está funcionando.",
+      "**Por que isso importa?** Em ambientes reais, servidores são provisionados dezenas ou centenas de vezes. Scripts IaC garantem que TODOS são configurados de forma idêntica. É a base para ferramentas como Ansible, Terraform e Puppet.",
+      "**Verificação automatizada:** O script inclui testes no final — verifica se o Apache está rodando, se a porta 80 está aberta e se a página responde. Se algo falhar, mostra uma mensagem de erro clara.",
+    ],
+    commands: [
+      {
+        command: "Script Completo de Provisionamento",
+        description: "Script Bash que instala e configura um servidor web Apache completo",
+        example: "#!/bin/bash\n# ============================================\n# SCRIPT DE PROVISIONAMENTO - SERVIDOR WEB\n# ============================================\nset -e\n\nif [ \"$EUID\" -ne 0 ]; then\n  echo \"Execute como root: sudo bash $0\"\n  exit 1\nfi\n\necho \"=== [1/7] Atualizando sistema ===\"\ndnf update -y\n\necho \"=== [2/7] Instalando Apache e PHP ===\"\ndnf install -y httpd php php-mysqlnd php-json\n\necho \"=== [3/7] Configurando firewall ===\"\nfirewall-cmd --add-service=http --permanent\nfirewall-cmd --add-service=https --permanent\nfirewall-cmd --reload\n\necho \"=== [4/7] Criando estrutura do site ===\"\nmkdir -p /var/www/html/meusite\ncat > /var/www/html/meusite/index.html <<EOF\n<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head><title>Servidor Provisionado!</title></head>\n<body>\n<h1>Servidor Web Funcionando!</h1>\n<p>Provisionado automaticamente via script IaC.</p>\n<p>Data: $(date)</p>\n</body>\n</html>\nEOF\n\necho \"=== [5/7] Definindo permissões ===\"\nchown -R apache:apache /var/www/html/\nchmod -R 755 /var/www/html/\n\necho \"=== [6/7] Iniciando serviços ===\"\nsystemctl start httpd\nsystemctl enable httpd\n\necho \"=== [7/7] Verificando ===\"\nif systemctl is-active --quiet httpd; then\n  echo \"✅ Apache rodando!\"\nelse\n  echo \"❌ Apache NÃO iniciou!\"\n  exit 1\nfi\n\nif curl -s -o /dev/null -w '%{http_code}' http://localhost/meusite/ | grep -q 200; then\n  echo \"✅ Site acessível em http://localhost/meusite/\"\nelse\n  echo \"⚠️ Site pode não estar acessível\"\nfi\n\nIP=$(hostname -I | awk '{print $1}')\necho \"\"\necho \"============================================\"\necho \"Servidor pronto! Acesse:\"\necho \"  Local:  http://localhost/meusite/\"\necho \"  Rede:   http://$IP/meusite/\"\necho \"============================================\"",
+        output: "# Execute com: sudo bash provisionar_web.sh\n# O script faz tudo automaticamente!",
+      },
+      {
+        command: "cat > arquivo <<EOF ... EOF",
+        description: "Heredoc — cria um arquivo com conteúdo inline no script (sem precisar de echo linha por linha)",
+        example: "cat > /tmp/teste.html <<EOF\n<h1>Olá!</h1>\nEOF",
+      },
+      {
+        command: "curl -s -o /dev/null -w '%{http_code}' URL",
+        description: "Testa se um URL retorna status 200 (OK) — útil para validação em scripts",
+        example: "curl -s -o /dev/null -w '%{http_code}' http://localhost/",
+        output: "200",
+      },
+    ],
+    exercises: [
+      { id: 1, question: "Qual é a vantagem de usar um script IaC para provisionar servidores?", answer: "Garantir que todos os servidores são configurados de forma idêntica, rápida e sem erros manuais" },
+      { id: 2, question: "O que o heredoc (<<EOF) faz em um script?", answer: "Permite criar/escrever conteúdo multilinha em um arquivo diretamente dentro do script" },
+      { id: 3, question: "Como verificar se o Apache está rodando em um script?", answer: "systemctl is-active --quiet httpd (retorna 0 se ativo)" },
+      { id: 4, question: "Quais ferramentas profissionais fazem IaC em larga escala?", answer: "Ansible, Terraform, Puppet, Chef, SaltStack" },
+    ],
+  },
+  {
+    id: "materiais-complementares",
+    title: "Materiais Complementares e Revisão",
+    icon: "📚",
+    category: "Materiais Complementares",
+    description: "Resumos consolidados, dicas extras e referências para aprofundamento em cada área do curso",
+    content: [
+      "**Arquivos e Diretórios — Dicas extras:** Use 'stat arquivo' para ver metadados completos (permissões, inode, datas). Use 'file arquivo' para descobrir o tipo real. 'basename /caminho/arquivo.txt' retorna só 'arquivo.txt'. 'dirname /caminho/arquivo.txt' retorna '/caminho'. Comando 'rename' renomeia em lote: 'rename .txt .bak *.txt'.",
+      "**Usuários e Grupos — Dicas extras:** '/etc/login.defs' define configurações padrão de criação de usuários (UID mínimo, expiração de senha). 'chage -l usuario' mostra política de senha. 'last' mostra últimos logins. 'w' mostra quem está logado agora. 'faillog -a' mostra tentativas de login falhas.",
+      "**Pacotes e Discos — Dicas extras:** 'rpm -qa' lista TODOS os pacotes instalados. 'rpm -qi pacote' mostra detalhes. 'rpm -ql pacote' lista arquivos do pacote. 'dnf provides /usr/bin/wget' descobre qual pacote fornece um arquivo. 'smartctl -a /dev/sda' mostra saúde do disco (instale: smartmontools).",
+      "**Serviços Linux — Dicas extras:** 'systemctl list-unit-files --type=service' lista todos os serviços. 'systemctl mask servico' bloqueia um serviço (nem manualmente inicia). 'journalctl --disk-usage' mostra espaço dos logs. 'timedatectl' gerencia data/hora/NTP.",
+      "**Desktop Linux — Dicas extras:** 'xdg-open arquivo' abre com o programa padrão. 'xrandr' lista/configura monitores. 'gsettings list-recursively' lista todas as configurações do GNOME. 'dconf dump /' exporta todas as configurações. 'gnome-screenshot' captura tela.",
+      "**Referências para aprofundamento:** Documentação oficial: docs.fedoraproject.org. Red Hat Learning: redhat.com/en/services/training. Linux Foundation: training.linuxfoundation.org. OverTheWire (prática): overthewire.org/wargames. Livro: 'Linux Command Line' (William Shotts — gratuito online).",
+    ],
+    commands: [
+      {
+        command: "stat arquivo",
+        description: "Mostra metadados completos: permissões, inode, tamanho, datas de acesso/modificação/criação",
+        example: "stat /etc/hostname",
+      },
+      {
+        command: "chage -l usuario",
+        description: "Mostra política de senha do usuário (expiração, último login, dias mínimos)",
+        example: "sudo chage -l estudante",
+      },
+      {
+        command: "last",
+        description: "Mostra histórico de logins no sistema (quem logou, quando, de onde)",
+        example: "last\nlast -n 10\nlast reboot",
+      },
+      {
+        command: "w",
+        description: "Mostra quem está logado agora e o que estão fazendo",
+        example: "w",
+      },
+      {
+        command: "rpm -qa / rpm -qi / rpm -ql",
+        description: "Lista todos os pacotes RPM, info de um pacote, ou arquivos de um pacote",
+        example: "rpm -qa | wc -l\nrpm -qi bash\nrpm -ql vim-enhanced",
+      },
+      {
+        command: "rename",
+        description: "Renomeia arquivos em lote usando padrão (instale: sudo dnf install prename)",
+        example: "rename .txt .bak *.txt\nrename foto IMG *.jpg",
+      },
+      {
+        command: "xdg-open",
+        description: "Abre arquivo/URL com o programa padrão associado",
+        example: "xdg-open documento.pdf\nxdg-open https://google.com",
+      },
+    ],
+    exercises: [
+      { id: 1, question: "Qual comando mostra metadados completos de um arquivo (inode, datas, permissões)?", answer: "stat arquivo" },
+      { id: 2, question: "Como ver quem está logado no sistema neste momento?", answer: "w (ou who)" },
+      { id: 3, question: "Como ver os últimos logins do sistema?", answer: "last" },
+      { id: 4, question: "Como descobrir qual pacote fornece o arquivo /usr/bin/git?", answer: "dnf provides /usr/bin/git" },
+      { id: 5, question: "Como renomear todos os .txt para .bak de uma vez?", answer: "rename .txt .bak *.txt" },
+      { id: 6, question: "Qual comando mostra a política de senha de um usuário?", answer: "sudo chage -l usuario" },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════
+  // PARTE FINAL — PREPARAÇÃO PARA A PROVA
   // ═══════════════════════════════════════════════════════
   {
     id: "revisao-prova",
